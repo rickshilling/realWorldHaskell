@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 97fe0770b2101fbcf1b7667f86ac9836e1114fe12a52b026640e8fbdf0ed3607
+-- hash: 3113b7f4a54a442d917156e68ea0e489c1c779304f53d73152b8146c9f63bd8c
 
 name:           realWorldHaskell
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , containers
   default-language: Haskell2010
 
 executable realWorldHaskell-exe
@@ -45,6 +46,7 @@ executable realWorldHaskell-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , realWorldHaskell
   default-language: Haskell2010
 
@@ -58,5 +60,6 @@ test-suite realWorldHaskell-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , realWorldHaskell
   default-language: Haskell2010
