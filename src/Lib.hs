@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Lib
     (
     ) where
@@ -5,6 +7,8 @@ module Lib
 import Data.List
 import Data.Graph
 import Data.Function
+import Data.Char
+import Control.Arrow
 
 -- http://book.realworldhaskell.org/read/getting-started.html
 
@@ -31,6 +35,7 @@ e1_4 = interact wordCount
 lastButOne :: [a] -> a
 lastButOne (x:y:[]) = x
 lastButOne (z:y:ys) = lastButOne (y:ys)
+-- Jamin: consider using Maybe or Either monad if pattern is not matched 
 
 --2.3
 -- If the list length is less than 2 than ghci throws an exception
@@ -58,10 +63,18 @@ isPal :: (Eq a) => [a] -> Bool
 isPal [] = True
 isPal (x:[]) = False
 isPal (x:xs) = (x == last xs) && (isPal $ init xs)
+{- Keep eye out for how to do an eager evaluation -}
 
 --3.6
 sortByLength :: [[a]] -> [[a]]
 sortByLength x = sortBy myOrder x
+{-
+Observe:
+λ> :t sortOn
+sortOn :: Ord b => (a -> b) -> [a] -> [a]
+λ> :t sortBy
+sortBy :: (a -> a -> Ordering) -> [a] -> [a]
+-}
 
 myOrder :: [a] -> [a] -> Ordering
 myOrder x y | xn == yn = EQ
@@ -92,6 +105,28 @@ data Direction = Left | Right | Straight deriving (Show,Eq)
 
 --3.10
 data Point = Point Float Float deriving (Show,Eq)
+data Segment = Segment Point Point deriving (Show,Eq)
+
+sp1 = Point 0 0
+sp2 = Point 0 1
+sp3 = Point 1 1
+
+s12 = Segment sp1 sp2
+s23 = Segment sp2 sp3
+
+data TriangleAngle = TriangleAngle {
+  p1 :: Point,
+  p2 :: Point,
+  p3 :: Point
+} deriving (Show,Eq)
+
+sampleTriangle1 = TriangleAngle { p1=Point 0 1, p2=Point 0 0, p3=Point 1 0}
+sampleTriangle2 = TriangleAngle { p1=Point 0 1, p2=Point 0 0, p3=Point 1 1}
+
+{-
+instance Ord (TriangleAngle) where
+  ()
+-}
 
 turnType :: Point -> Point -> Point -> Direction
 turnType (Point x1 y1) (Point x2 y2) (Point x3 y3)
@@ -136,18 +171,35 @@ findLowestAndLeftistPoint (p:ps) = helper p ps
       | otherwise = if x < a then helper (Point x y) ps else helper (Point a b) ps
 
 p0 = findLowestAndLeftistPoint samplePoints
+
+--
+{-
+sortByTriangle :: Point -> [Point] -> [Point]
+sortByTriangle p0 ps = sortBy $ (on compare (angle p0)) ps
+-}
+angle :: Point -> Point -> Float
+angle (Point x y) (Point a b) = atan2 (b-y) (a-x)
+
+--sampleTriangle = angle (Point 0 0) (Point 1 1)
+
+angleCompare :: Point -> Point -> Point -> Ordering
+angleCompare p0 p1 p2
+  | angle1_0 < angle2_0 = LT
+  | angle1_0 > angle2_0 = GT
+  | otherwise = EQ
+  where
+    angle1_0 = angle p0 p1
+    angle2_0 = angle p0 p2
+  
+
+{-
+***********************************************************
+-}
 {-
 -- consider using zipper
 removeLowestAndLeftistPoint :: [Point] -> [Point]
 removeLowestAndLeftistPoint (p:ps) = helper p ps 
 -}
-{-
-sortByAngle :: Point -> [Point] -> [Point]
-sortByAngle p0 ps = tail $ sortBy 
--}
-angle :: Point -> Point -> Float
-angle (Point x y) (Point a b) = atan2 (b-y) (a-x) 
-
 findLowestPoint :: [Point] -> Point
 findLowestPoint = minimumBy lowestPointCompare
 
@@ -204,3 +256,136 @@ stackEmpty (Stack n _) = n == 0
 stackPeek :: Stack a -> a
 stackPeek (Stack _ (x:xs)) = x
 
+{-
+http://book.realworldhaskell.org/read/functional-programming.html
+-}
+--4.1
+safeHead :: [a] -> Maybe a
+safeHead [] = Nothing
+safeHead (x:xs) = Just x
+
+safeTail [] = Nothing
+safeTail xs = Just $ tail xs
+
+safeLast [] = Nothing
+safeLast xs = Just $ last xs
+
+safeInit [] = Nothing
+safeInit xs = Just $ init xs
+
+--4.2
+splitWith :: (a -> Bool) -> [a] -> [[a]]
+splitWith _ [] = []
+splitWith f xs = [first] ++ splitWith f (dropWhile f second)
+  where
+    (first, second) = break f (dropWhile f xs)
+
+someList = [1,2,4,5,6,4,7]
+testSplit = splitWith (==4) someList
+
+--4.3
+firstWordOfEachLine s= map head (map words (lines s))
+myString = "Hello World\nGood Bye"
+test4_3 = firstWordOfEachLine myString
+
+--4.4, ok I cheated on this one. I've seen matrix transpose using a list of lists  pattern before 
+transposeText :: String -> String
+transposeText s = unlines $ helper (lines s)
+  where
+    helper x
+      | null x = []
+      | any null x = []
+      | otherwise = (map head x) : helper (map tail x)
+
+test_4_4_string = "Hello\nWorld\nRicky"
+answer_4_4_sample = transposeText test_4_4_string
+
+transposeMatrix :: [[a]] -> [[a]]
+transposeMatrix ([]:_) = []
+transposeMatrix x = (map head x) : transposeMatrix (map tail x)
+x = [[1,2,3],[4,5,6]]
+
+-- 4b.1
+asInt_fold :: String -> Int
+asInt_fold ('-':ys) = -asInt_foldHelper ys
+asInt_fold ys       =  asInt_foldHelper ys
+asInt_foldHelper xs = foldl (\b -> \a -> (10 * b +  Data.Char.digitToInt a)) 0 xs
+
+
+-- 4b.2
+{-
+asInt_fold2 :: String -> Either ErrorMessage Int
+asInt_fold2 ('-':ys) = -asInt_foldHelper ys
+asInt_fold2 ys       =  asInt_foldHelper ys
+asInt_foldHelper2 xs = foldl (\b -> \a -> (10 * b +  Data.Char.digitToInt a)) 0 xs
+-}
+--Data.Either.Left 4
+
+--4b.3
+myConcat :: [[a]] -> [a]
+myConcat x = foldr (++) [] x
+
+{-
+myGroupBy :: (a-> a-> Bool)-> [a] -> [[a]]
+myGroupBy f [] = []
+myGroupBy f (x:xs) = 
+-}
+
+myGroupBy :: (a -> a -> Bool) -> [a] -> [[a]]
+myGroupBy f xs = foldr step [] xs
+  where step element grps = let relElem = f element in
+          case find (all relElem) grps of
+            Just grp -> (element : grp) : filter (all (not.relElem)) grps
+            Nothing -> [element] : grps
+
+-- 5.1
+data Doc = Empty
+         | Char Char
+         | Text String
+         | Line
+         | Concat Doc Doc
+         | Union Doc Doc
+           deriving (Show,Eq)
+{-
+fill :: Int -> Doc -> Doc
+fill w d = undefined
+-}
+
+data Color = Red | Green | Blue
+
+colorEq :: Color -> Color -> Bool
+colorEq Red   Red   = True
+colorEq Green Green = True
+colorEq Blue  Blue  = True
+colorEq _     _     = False
+
+instance Show Color where
+  show Red = "Red"
+  show Green = "Green"
+  show Blue = "Blue"
+
+class BasicEq a where
+  isEqual :: a -> a -> Bool
+  next :: a -> a
+
+instance BasicEq Color where
+  isEqual Red Red = True
+  isEqual Green Green = True
+  isEqual Blue Blue = True
+  isEqual _ _ = False
+  next Red = Green
+  next Green = Blue
+  next Blue = Red
+
+-- Chapter 6
+newtype NewtypeInt = N Int deriving (Eq, Ord, Show)
+
+data TwoFields = TwoFields Int Int
+
+newtype Okay = ExactlyOne Int
+newtype Param a b = Param (Either a b)
+newtype Record = Record {
+      getInt :: Int
+    }
+
+--e1
